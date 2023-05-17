@@ -97,6 +97,7 @@ func (w *writer) WriteBody(r io.Reader) error {
 	return err
 }
 
+
 // WriteChunked writes the contents of r in chunked format to the wire.
 func (w *writer) WriteChunked(r io.Reader) error {
 	if w.phase != body {
@@ -107,5 +108,12 @@ func (w *writer) WriteChunked(r io.Reader) error {
 		return nil
 	}
 	w.phase = requestline
-	return cw.Close()
+	err := cw.Close()
+	if err != nil {
+		return err
+	}
+	// WriteTrailer
+	_, err = cw.Write([]byte{'\r','\n'})
+	return err
 }
+
