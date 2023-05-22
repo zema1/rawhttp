@@ -113,7 +113,7 @@ func (w *writer) WriteChunked(r io.Reader) error {
 		return err
 	}
 	// WriteTrailer
-	_, err = cw.Write([]byte{'\r','\n'})
+	_, err = w.Write([]byte{'\r','\n'})
 	return err
 }
 
