@@ -3,43 +3,41 @@ package rawhttp
 import (
 	"crypto/tls"
 	"fmt"
-	"io"
 	"net"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/zema1/rawhttp/client"
 	"github.com/zema1/rawhttp/proxy"
 )
 
 // Dialer can dial a remote HTTP server.
 type Dialer interface {
 	// Dial dials a remote http server returning a Conn.
-	Dial(protocol, addr string, options *Options) (Conn, error)
-	DialWithProxy(protocol, addr, proxyURL string, timeout time.Duration, options *Options) (Conn, error)
+	Dial(protocol, addr string, options *Options) (net.Conn, error)
+	DialWithProxy(protocol, addr, proxyURL string, timeout time.Duration, options *Options) (net.Conn, error)
 	// Dial dials a remote http server with timeout returning a Conn.
-	DialTimeout(protocol, addr string, timeout time.Duration, options *Options) (Conn, error)
+	DialTimeout(protocol, addr string, timeout time.Duration, options *Options) (net.Conn, error)
 }
 
 type dialer struct {
-	sync.Mutex                   // protects following fields
-	conns      map[string][]Conn // maps addr to a, possibly empty, slice of existing Conns
+	sync.Mutex                       // protects following fields
+	conns      map[string][]net.Conn // maps addr to a, possibly empty, slice of existing Conns
 }
 
-func (d *dialer) Dial(protocol, addr string, options *Options) (Conn, error) {
+func (d *dialer) Dial(protocol, addr string, options *Options) (net.Conn, error) {
 	return d.dialTimeout(protocol, addr, 0, options)
 }
 
-func (d *dialer) DialTimeout(protocol, addr string, timeout time.Duration, options *Options) (Conn, error) {
+func (d *dialer) DialTimeout(protocol, addr string, timeout time.Duration, options *Options) (net.Conn, error) {
 	return d.dialTimeout(protocol, addr, timeout, options)
 }
 
-func (d *dialer) dialTimeout(protocol, addr string, timeout time.Duration, options *Options) (Conn, error) {
+func (d *dialer) dialTimeout(protocol, addr string, timeout time.Duration, options *Options) (net.Conn, error) {
 	d.Lock()
 	if d.conns == nil {
-		d.conns = make(map[string][]Conn)
+		d.conns = make(map[string][]net.Conn)
 	}
 	if c, ok := d.conns[addr]; ok {
 		if len(c) > 0 {
@@ -50,15 +48,10 @@ func (d *dialer) dialTimeout(protocol, addr string, timeout time.Duration, optio
 		}
 	}
 	d.Unlock()
-	c, err := clientDial(protocol, addr, timeout, options)
-	return &conn{
-		Client: client.NewClient(c),
-		Conn:   c,
-		dialer: d,
-	}, err
+	return clientDial(protocol, addr, timeout, options)
 }
 
-func (d *dialer) DialWithProxy(protocol, addr, proxyURL string, timeout time.Duration, options *Options) (Conn, error) {
+func (d *dialer) DialWithProxy(protocol, addr, proxyURL string, timeout time.Duration, options *Options) (net.Conn, error) {
 	var c net.Conn
 	u, err := url.Parse(proxyURL)
 	if err != nil {
@@ -80,11 +73,7 @@ func (d *dialer) DialWithProxy(protocol, addr, proxyURL string, timeout time.Dur
 			return nil, fmt.Errorf("tls handshake error: %w", err)
 		}
 	}
-	return &conn{
-		Client: client.NewClient(c),
-		Conn:   c,
-		dialer: d,
-	}, err
+	return c, nil
 }
 
 func clientDial(protocol, addr string, timeout time.Duration, options *Options) (net.Conn, error) {
@@ -129,28 +118,4 @@ func TlsHandshake(conn net.Conn, addr string) (net.Conn, error) {
 		return nil, err
 	}
 	return tlsConn, nil
-}
-
-// Conn is an interface implemented by a connection
-type Conn interface {
-	client.Client
-	io.Closer
-
-	SetDeadline(time.Time) error
-	SetReadDeadline(time.Time) error
-	SetWriteDeadline(time.Time) error
-	Release()
-}
-
-type conn struct {
-	client.Client
-	net.Conn
-	*dialer
-}
-
-func (c *conn) Release() {
-	c.dialer.Lock()
-	defer c.dialer.Unlock()
-	addr := c.Conn.RemoteAddr().String()
-	c.dialer.conns[addr] = append(c.dialer.conns[addr], c)
 }

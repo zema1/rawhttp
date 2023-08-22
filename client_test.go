@@ -1,6 +1,8 @@
 package rawhttp
 
 import (
+	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -47,4 +49,27 @@ func TestDialWithCustomTimeout(t *testing.T) {
 	if !stringsutil.ContainsAny(err.Error(), "i/o timeout") || time.Now().Before(startTime.Add(timeout)) {
 		t.Error("custom timeout error")
 	}
+}
+
+func TestSimpleRequest(t *testing.T) {
+	options := &Options{
+		Timeout:                0 * time.Second,
+		FollowRedirects:        false,
+		MaxRedirects:           0,
+		AutomaticHostHeader:    true,
+		AutomaticContentLength: false,
+		ForceReadAllBody:       false,
+	}
+	client := NewClient(options)
+	req, _ := http.NewRequest(http.MethodGet, "https://example.com", nil)
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("status: %d, body length: %d\n", resp.StatusCode, len(data))
 }

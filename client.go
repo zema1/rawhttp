@@ -2,8 +2,10 @@ package rawhttp
 
 import (
 	"fmt"
+	"github.com/zema1/rawhttp/client"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	stdurl "net/url"
 	"strings"
@@ -92,11 +94,11 @@ func (c *Client) DoRawWithOptions(method, url, uripath string, headers map[strin
 	return c.do(method, url, uripath, headers, body, redirectstatus, options)
 }
 
-func (c *Client) getConn(protocol, host string, options *Options) (Conn, error) {
+func (c *Client) getConn(protocol, host string, options *Options) (net.Conn, error) {
 	if options.Proxy != "" {
 		return c.dialer.DialWithProxy(protocol, host, c.Options.Proxy, c.Options.ProxyDialTimeout, options)
 	}
-	var conn Conn
+	var conn net.Conn
 	var err error
 	if options.Timeout > 0 {
 		conn, err = c.dialer.DialTimeout(protocol, host, options.Timeout, options)
@@ -155,6 +157,7 @@ func (c *Client) do(method, url, uripath string, headers map[string][]string, bo
 	if err != nil {
 		return nil, err
 	}
+	defer conn.Close()
 
 	req := toRequest(method, path, nil, headers, body, options)
 	req.AutomaticContentLength = options.AutomaticContentLength
@@ -165,10 +168,12 @@ func (c *Client) do(method, url, uripath string, headers map[string][]string, bo
 		_ = conn.SetDeadline(time.Now().Add(options.Timeout))
 	}
 
-	if err := conn.WriteRequest(req); err != nil {
+	connClient := client.NewConnClient(conn)
+
+	if err := connClient.WriteRequest(req); err != nil {
 		return nil, err
 	}
-	resp, err := conn.ReadResponse(options.ForceReadAllBody)
+	resp, err := connClient.ReadResponse(options.ForceReadAllBody)
 	if err != nil {
 		return nil, err
 	}
