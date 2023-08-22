@@ -2,14 +2,14 @@ package rawhttp
 
 import (
 	"fmt"
+	"github.com/zema1/rawhttp/client"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	stdurl "net/url"
 	"strings"
 	"time"
-
-	retryablehttp "github.com/projectdiscovery/retryablehttp-go"
 )
 
 // Client is a client for making raw http requests with go
@@ -30,11 +30,11 @@ func AutomaticContentLength(enable bool) {
 
 // NewClient creates a new rawhttp client with provided options
 func NewClient(options *Options) *Client {
-	client := &Client{
+	c := &Client{
 		dialer:  new(dialer),
 		Options: options,
 	}
-	return client
+	return c
 }
 
 // Head makes a HEAD request to a given URL
@@ -64,16 +64,6 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 	return c.DoRaw(method, url, "", headers, body)
 }
 
-// Dor sends a retryablehttp request and returns the response
-func (c *Client) Dor(req *retryablehttp.Request) (*http.Response, error) {
-	method := req.Method
-	headers := req.Header
-	url := req.URL.String()
-	body := req.Body
-
-	return c.DoRaw(method, url, "", headers, body)
-}
-
 // DoRaw does a raw request with some configuration
 func (c *Client) DoRaw(method, url, uripath string, headers map[string][]string, body io.Reader) (*http.Response, error) {
 	redirectstatus := &RedirectStatus{
@@ -92,11 +82,11 @@ func (c *Client) DoRawWithOptions(method, url, uripath string, headers map[strin
 	return c.do(method, url, uripath, headers, body, redirectstatus, options)
 }
 
-func (c *Client) getConn(protocol, host string, options *Options) (Conn, error) {
+func (c *Client) getConn(protocol, host string, options *Options) (net.Conn, error) {
 	if options.Proxy != "" {
 		return c.dialer.DialWithProxy(protocol, host, c.Options.Proxy, c.Options.ProxyDialTimeout, options)
 	}
-	var conn Conn
+	var conn net.Conn
 	var err error
 	if options.Timeout > 0 {
 		conn, err = c.dialer.DialTimeout(protocol, host, options.Timeout, options)
@@ -165,10 +155,12 @@ func (c *Client) do(method, url, uripath string, headers map[string][]string, bo
 		_ = conn.SetDeadline(time.Now().Add(options.Timeout))
 	}
 
-	if err := conn.WriteRequest(req); err != nil {
+	connClient := client.NewConnClient(conn)
+
+	if err := connClient.WriteRequest(req); err != nil {
 		return nil, err
 	}
-	resp, err := conn.ReadResponse(options.ForceReadAllBody)
+	resp, err := connClient.ReadResponse(options.ForceReadAllBody)
 	if err != nil {
 		return nil, err
 	}

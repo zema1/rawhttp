@@ -50,9 +50,8 @@ type Request struct {
 // ContentLength returns the length of the body. If the body length is not known
 // ContentLength will return -1.
 func (r *Request) ContentLength() int64 {
-	// TODO(dfc) this should support anything with a Len() int64 method.
 	if r.Body == nil {
-		return -1
+		return 0
 	}
 	switch b := r.Body.(type) {
 	case *bytes.Buffer:
@@ -66,15 +65,15 @@ func (r *Request) ContentLength() int64 {
 
 const readerBuffer = 4096
 
-// Client represents a single connection to a http server. Client obeys KeepAlive conditions for
+// ConnClient represents a single connection to a http server. ConnClient obeys KeepAlive conditions for
 // HTTP but connection pooling is expected to be handled at a higher layer.
-type Client interface {
+type ConnClient interface {
 	WriteRequest(*Request) error
 	ReadResponse(forceReadAll bool) (*Response, error)
 }
 
-// NewClient returns a Client implementation which uses rw to communicate.
-func NewClient(rw io.ReadWriter) Client {
+// NewConnClient returns a ConnClient implementation which uses rw to communicate.
+func NewConnClient(rw io.ReadWriter) ConnClient {
 	return &client{
 		reader: reader{bufio.NewReaderSize(rw, readerBuffer)},
 		writer: writer{Writer: rw},

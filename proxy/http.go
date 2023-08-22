@@ -39,7 +39,7 @@ func HTTPDialer(proxyAddr string, timeout time.Duration) DialFunc {
 		if err != nil {
 			return nil, err
 		}
-		conn := client.NewClient(netConn)
+		conn := client.NewConnClient(netConn)
 
 		req := "CONNECT " + addr + " HTTP/1.1\r\n"
 		if auth != "" {

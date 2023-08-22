@@ -1,6 +1,7 @@
 package rawhttp
 
 import (
+	"net"
 	"time"
 
 	"github.com/zema1/rawhttp/client"
@@ -19,6 +20,7 @@ type Options struct {
 	Proxy                  string
 	ProxyDialTimeout       time.Duration
 	SNI                    string
+	TLSHandshake           func(conn net.Conn, addr string, options *Options) (net.Conn, error)
 }
 
 // DefaultOptions is the default configuration options for the client

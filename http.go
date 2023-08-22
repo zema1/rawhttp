@@ -3,8 +3,6 @@ package rawhttp
 import (
 	"io"
 	"net/http"
-
-	retryablehttp "github.com/projectdiscovery/retryablehttp-go"
 )
 
 // DefaultClient is the default HTTP client for doing raw requests
@@ -26,11 +24,6 @@ func Post(url string, mimetype string, r io.Reader) (*http.Response, error) {
 // Do sends a http request and returns a response
 func Do(req *http.Request) (*http.Response, error) {
 	return DefaultClient.Do(req)
-}
-
-// Dor sends a retryablehttp request and returns a response
-func Dor(req *retryablehttp.Request) (*http.Response, error) {
-	return DefaultClient.Dor(req)
 }
 
 // DoRaw does a raw request with some configuration

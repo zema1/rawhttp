@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	stdurl "net/url"
 	"strings"
@@ -45,7 +46,7 @@ func toRequest(method string, path string, query []string, headers map[string][]
 		Body:    body,
 	}
 }
-func toHTTPResponse(conn Conn, resp *client.Response) (*http.Response, error) {
+func toHTTPResponse(conn net.Conn, resp *client.Response) (*http.Response, error) {
 	rheaders := fromHeaders(resp.Headers)
 	r := http.Response{
 		ProtoMinor:    resp.Version.Minor,
