@@ -10,8 +10,6 @@ import (
 	stdurl "net/url"
 	"strings"
 	"time"
-
-	retryablehttp "github.com/projectdiscovery/retryablehttp-go"
 )
 
 // Client is a client for making raw http requests with go
@@ -32,11 +30,11 @@ func AutomaticContentLength(enable bool) {
 
 // NewClient creates a new rawhttp client with provided options
 func NewClient(options *Options) *Client {
-	client := &Client{
+	c := &Client{
 		dialer:  new(dialer),
 		Options: options,
 	}
-	return client
+	return c
 }
 
 // Head makes a HEAD request to a given URL
@@ -58,16 +56,6 @@ func (c *Client) Post(url string, mimetype string, body io.Reader) (*http.Respon
 
 // Do sends a http request and returns a response
 func (c *Client) Do(req *http.Request) (*http.Response, error) {
-	method := req.Method
-	headers := req.Header
-	url := req.URL.String()
-	body := req.Body
-
-	return c.DoRaw(method, url, "", headers, body)
-}
-
-// Dor sends a retryablehttp request and returns the response
-func (c *Client) Dor(req *retryablehttp.Request) (*http.Response, error) {
 	method := req.Method
 	headers := req.Header
 	url := req.URL.String()
