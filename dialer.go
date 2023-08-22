@@ -69,7 +69,10 @@ func (d *dialer) DialWithProxy(protocol, addr, proxyURL string, timeout time.Dur
 		return nil, fmt.Errorf("proxy error: %w", err)
 	}
 	if protocol == "https" {
-		if c, err = TlsHandshake(c, addr); err != nil {
+		if c, err = TlsHandshake(c, addr, options); err != nil {
+			if c != nil {
+				_ = c.Close()
+			}
 			return nil, fmt.Errorf("tls handshake error: %w", err)
 		}
 	}
@@ -85,37 +88,32 @@ func clientDial(protocol, addr string, timeout time.Duration, options *Options) 
 		return net.Dial("tcp", addr)
 	}
 
+	conn, err := net.DialTimeout("tcp", addr, timeout)
+	if err != nil {
+		return nil, err
+	}
 	// https
-	tlsConfig := &tls.Config{InsecureSkipVerify: true}
-	if options.SNI != "" {
-		tlsConfig.ServerName = options.SNI
+	if options.TLSHandshake != nil {
+		return options.TLSHandshake(conn, addr, options)
+	} else {
+		return TlsHandshake(conn, addr, options)
 	}
-	if timeout > 0 {
-		conn, err := net.DialTimeout("tcp", addr, timeout)
-		if err != nil {
-			return nil, err
-		}
-		tlsConn := tls.Client(conn, tlsConfig)
-		return tlsConn, tlsConn.Handshake()
-	}
-	return tls.Dial("tcp", addr, tlsConfig)
 }
 
 // TlsHandshake tls handshake on a plain connection
-func TlsHandshake(conn net.Conn, addr string) (net.Conn, error) {
-	colonPos := strings.LastIndex(addr, ":")
-	if colonPos == -1 {
-		colonPos = len(addr)
+func TlsHandshake(conn net.Conn, addr string, options *Options) (net.Conn, error) {
+	hostname := options.SNI
+	if options.SNI == "" {
+		colonPos := strings.LastIndex(addr, ":")
+		if colonPos == -1 {
+			colonPos = len(addr)
+		}
+		hostname = addr[:colonPos]
 	}
-	hostname := addr[:colonPos]
 
 	tlsConn := tls.Client(conn, &tls.Config{
 		InsecureSkipVerify: true,
 		ServerName:         hostname,
 	})
-	if err := tlsConn.Handshake(); err != nil {
-		conn.Close()
-		return nil, err
-	}
-	return tlsConn, nil
+	return tlsConn, tlsConn.Handshake()
 }
