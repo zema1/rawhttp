@@ -50,9 +50,8 @@ type Request struct {
 // ContentLength returns the length of the body. If the body length is not known
 // ContentLength will return -1.
 func (r *Request) ContentLength() int64 {
-	// TODO(dfc) this should support anything with a Len() int64 method.
 	if r.Body == nil {
-		return -1
+		return 0
 	}
 	switch b := r.Body.(type) {
 	case *bytes.Buffer:

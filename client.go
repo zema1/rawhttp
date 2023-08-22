@@ -145,7 +145,6 @@ func (c *Client) do(method, url, uripath string, headers map[string][]string, bo
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
 
 	req := toRequest(method, path, nil, headers, body, options)
 	req.AutomaticContentLength = options.AutomaticContentLength

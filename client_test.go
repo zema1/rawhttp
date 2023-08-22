@@ -55,7 +55,7 @@ func TestSimpleRequest(t *testing.T) {
 		FollowRedirects:        false,
 		MaxRedirects:           0,
 		AutomaticHostHeader:    true,
-		AutomaticContentLength: false,
+		AutomaticContentLength: true,
 		ForceReadAllBody:       false,
 	}
 	client := NewClient(options)
