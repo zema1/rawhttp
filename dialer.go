@@ -10,11 +10,13 @@ import (
 	"time"
 )
 
+type ContextDialFunc func(ctx context.Context, network, address string) (net.Conn, error)
+
 // Dialer can dial a remote HTTP server.
 type Dialer interface {
 	// Dial dials a remote http server returning a Conn.
 	Dial(protocol, addr string, options *Options) (net.Conn, error)
-	DialWithProxy(protocol, addr, upstream func(network, address string) (net.Conn, error), timeout time.Duration, options *Options) (net.Conn, error)
+	DialWithProxy(protocol, addr string, upstream ContextDialFunc, timeout time.Duration, options *Options) (net.Conn, error)
 	// Dial dials a remote http server with timeout returning a Conn.
 	DialTimeout(protocol, addr string, timeout time.Duration, options *Options) (net.Conn, error)
 }
@@ -49,7 +51,7 @@ func (d *dialer) dialTimeout(protocol, addr string, timeout time.Duration, optio
 	return clientDial(protocol, addr, timeout, options)
 }
 
-func (d *dialer) DialWithProxy(protocol, addr string, upstream func(ctx context.Context, network, address string) (net.Conn, error), timeout time.Duration, options *Options) (net.Conn, error) {
+func (d *dialer) DialWithProxy(protocol, addr string, upstream ContextDialFunc, timeout time.Duration, options *Options) (net.Conn, error) {
 	ctx, _ := context.WithTimeout(context.Background(), timeout)
 	conn, err := upstream(ctx, "tcp", addr)
 	if err != nil {

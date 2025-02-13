@@ -17,7 +17,7 @@ type Options struct {
 	CustomHeaders          client.Headers
 	ForceReadAllBody       bool // ignores content length and reads all body
 	CustomRawBytes         []byte
-	Proxy                  string
+	Proxy                  ContextDialFunc
 	ProxyDialTimeout       time.Duration
 	SNI                    string
 	TLSHandshake           func(conn net.Conn, addr string, options *Options) (net.Conn, error)
