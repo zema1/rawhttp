@@ -1,22 +1,22 @@
 package rawhttp
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/zema1/rawhttp/proxy"
 )
+
+type ContextDialFunc func(ctx context.Context, network, address string) (net.Conn, error)
 
 // Dialer can dial a remote HTTP server.
 type Dialer interface {
 	// Dial dials a remote http server returning a Conn.
 	Dial(protocol, addr string, options *Options) (net.Conn, error)
-	DialWithProxy(protocol, addr, proxyURL string, timeout time.Duration, options *Options) (net.Conn, error)
+	DialWithProxy(protocol, addr string, upstream ContextDialFunc, timeout time.Duration, options *Options) (net.Conn, error)
 	// Dial dials a remote http server with timeout returning a Conn.
 	DialTimeout(protocol, addr string, timeout time.Duration, options *Options) (net.Conn, error)
 }
@@ -51,32 +51,21 @@ func (d *dialer) dialTimeout(protocol, addr string, timeout time.Duration, optio
 	return clientDial(protocol, addr, timeout, options)
 }
 
-func (d *dialer) DialWithProxy(protocol, addr, proxyURL string, timeout time.Duration, options *Options) (net.Conn, error) {
-	var c net.Conn
-	u, err := url.Parse(proxyURL)
-	if err != nil {
-		return nil, fmt.Errorf("unsupported proxy error: %w", err)
-	}
-	switch u.Scheme {
-	case "http":
-		c, err = proxy.HTTPDialer(proxyURL, timeout)(addr)
-	case "socks5", "socks5h":
-		c, err = proxy.Socks5Dialer(proxyURL, timeout)(addr)
-	default:
-		return nil, fmt.Errorf("unsupported proxy protocol: %s", proxyURL)
-	}
+func (d *dialer) DialWithProxy(protocol, addr string, upstream ContextDialFunc, timeout time.Duration, options *Options) (net.Conn, error) {
+	ctx, _ := context.WithTimeout(context.Background(), timeout)
+	conn, err := upstream(ctx, "tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("proxy error: %w", err)
 	}
 	if protocol == "https" {
-		if c, err = TlsHandshake(c, addr, options); err != nil {
-			if c != nil {
-				_ = c.Close()
+		if conn, err = TlsHandshake(conn, addr, options); err != nil {
+			if conn != nil {
+				_ = conn.Close()
 			}
 			return nil, fmt.Errorf("tls handshake error: %w", err)
 		}
 	}
-	return c, nil
+	return conn, nil
 }
 
 func clientDial(protocol, addr string, timeout time.Duration, options *Options) (net.Conn, error) {
